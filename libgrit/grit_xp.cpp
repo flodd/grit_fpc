@@ -167,6 +167,11 @@ void grit_xp_decl(FILE *fp, int chunk, const char *name, int affix, int len);
 bool grit_xp_h(GritRec *gr);
 bool grit_preface(GritRec *gr, FILE *fp, const char *cmt);
 
+void grit_xp_decl_pas(FILE *fp, const DataItem *item);
+void grit_xp_decl_pas(FILE *fp, int chunk, const char *name, int affix, int len);
+bool grit_xp_pas(GritRec *gr);
+
+
 uint grit_xp_total_size(GritRec *gr);
 
 // --------------------------------------------------------------------
@@ -182,8 +187,13 @@ uint grit_xp_total_size(GritRec *gr);
 bool grit_export(GritRec *gr)
 {
 	// Header file
-	if(gr->bHeader)
-		grit_xp_h(gr);
+	if(gr->bHeader){
+		if(gr->bHeaderPascal)
+			grit_xp_pas(gr);
+		else
+			grit_xp_h(gr);
+	}
+		
 
 	// And the rest
 	switch(gr->fileType)
@@ -1109,6 +1119,131 @@ bool grit_xp_h(GritRec *gr)
 
 	return true;
 }
+
+
+
+void grit_xp_decl_pas(FILE *fp, int dtype, const char *name, int affix, int len)
+{
+	fprintf(fp, "const %s%sLen = %d;\n", name, c_identAffix[affix], len);
+	fprintf(fp, "      %s%sMax = %d;\n", name, c_identAffix[affix], ALIGN4(len)/dtype);
+	fprintf(fp, "var %s%s: array [0..0] of %s; cvar; external;\n\n", name, c_identAffix[affix], cPTypes[dtype]);
+}
+
+void grit_xp_decl_pas(FILE *fp, DataItem *item)
+{
+	if(item == NULL || item->pRec == NULL)
+		return;
+
+	uint size= rec_size(item->pRec);
+	uint dtype= grit_type_size(item->dataType);
+	uint count= ALIGN4(size)/dtype;
+
+	fprintf(fp, "const %sLen = %d;\n", item->name, size);
+	fprintf(fp, "      %sMax = %d;\n", item->name, count);
+	fprintf(fp, "var %s: array [0..0] of %s; cvar; external;\n\n", item->name, cPTypes[dtype]);
+}
+
+
+//! Creates header file with the declaration list
+/*
+	\note The header file is for declarations only; it does NOT have 
+		actual data in it. Data in headers is bad, so don't have 
+		data in headers, mkay? Mkay!
+*/
+bool grit_xp_pas(GritRec *gr)
+{
+	char str[MAXPATHLEN];
+	char tag[MAXPATHLEN], fpath[MAXPATHLEN], tmppath[MAXPATHLEN];
+	long pos= -1;
+	FILE *fin, *fout;
+	bool bAppend= gr->bAppend;
+
+	// Prep begin tag
+	sprintf(tag, "{%%REGION %s}",gr->symName);
+
+	// Open 'output' file
+	path_repl_ext(fpath, gr->dstPath, "inc", MAXPATHLEN);
+
+	// File doesn't exist -> write-mode only
+	if(!file_exists(fpath))
+		bAppend=false;
+
+	if(bAppend)
+	{
+		// Open temp and input file
+		tmpnam(tmppath);
+		if( (fout=fopen(tmppath, "w")) == NULL)
+			return false;
+
+		fin= fopen(fpath, "r");
+		pos= file_find_tag(fout, fin, tag);
+	}
+	else
+		fout= fopen(fpath, "w");
+
+	// Add blank line before new block
+	if(pos == -1)
+		fputc('\n', fout);
+
+	// --- Start grit-block ---
+
+	fprintf(fout, "%s\n\n", tag);
+
+	grit_preface(gr, fout, "//");
+
+	// include guards
+	strcpy(str, gr->symName);
+	strupr(str);
+	fprintf(fout, "{$IFNDEF GRIT_%s_INC}\n{$DEFINE GRIT_%s_INC}\n\n", str, str);
+
+
+	if(gr->bRiff)	// Single GRF item
+	{
+		grit_xp_decl_pas(fout, grit_type_size(gr->gfxDataType), 
+			gr->symName, E_AFX_GRF, grit_xp_size(gr));
+	}
+	else			// Separate items
+	{
+		DataItem item;
+		for(eint id=GRIT_ITEM_GFX; id<GRIT_ITEM_MAX; id++)
+		{
+			grit_prep_item(gr, id, &item);
+			if(item.procMode == GRIT_EXPORT)
+			grit_xp_decl_pas(fout, &item);
+		}
+	}
+
+	// include guards again
+	strcpy(str, gr->symName);
+	strupr(str);
+	fprintf(fout, "{$ENDIF GRIT_%s_INC}\n\n", str);
+
+	sprintf(tag, "{%%ENDREGION %s}",gr->symName);
+	fprintf(fout, "%s\n", tag);
+
+	// --- End grit-block ---
+
+	if(bAppend)
+	{
+		// Skip till end tag and copy rest
+		file_find_tag(NULL, fin, tag);
+		file_copy(fout, fin, -1);
+
+		// close files and rename
+		fclose(fout);
+		fclose(fin);
+		remove(fpath);
+		rename(tmppath, fpath);
+	}
+	else
+	{
+		// close files
+		fclose(fout);
+	}
+
+	return true;
+}
+
 
 //! Creates data preface, containing a data description
 /*!

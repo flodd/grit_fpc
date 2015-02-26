@@ -133,6 +133,7 @@ void grit_init(GritRec *gr)
 	gr->bAppend= false;
 	gr->bExport= true;
 	gr->bRiff= false;
+	gr->bHeaderPascal= false;
 
 	// Area options (tl inclusive, rb exclusive).
 	gr->areaLeft= 0;

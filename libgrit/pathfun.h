@@ -41,6 +41,7 @@
 extern const char cTypeSpec[];
 extern const char *cCTypes[];
 extern const char *cGasTypes[];
+extern const char *cPTypes[];
 
 
 // --------------------------------------------------------------------

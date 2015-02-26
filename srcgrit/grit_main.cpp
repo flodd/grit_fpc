@@ -128,6 +128,7 @@ const char appHelpText[]=
 "-fa            File append\n"
 "-fh | -fh!     Create header or not [create header]\n"
 "-ff{name}      Additional options read from flag file [dst-name.grit]\n"
+"-fp            Header in Pascal instead of c\n"
 "-fx{name}      External tileset file\n"
 "-o{name}       Destination filename [based on source]\n"
 "-s{name}       Symbol base name [based from dst]\n"
@@ -564,6 +565,8 @@ bool grit_parse_file(GritRec *gr, const strvec &args)
 
 		lprintf(LOG_STATUS, "Ext file: %s.\n", gr->shared->tilePath);	
 	}
+
+	gr->bHeaderPascal=CLI_BOOL("-fp");
 
 	return true;
 }

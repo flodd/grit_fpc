@@ -254,6 +254,7 @@ struct GritRec
 	bool	 bAppend;		//!< Append to existing file (-fa).
 	bool	 bExport;		//!< Global export toggle (?).
 	bool	 bRiff;			//!< RIFFed data.
+	bool	 bHeaderPascal;	//!< Header in Pascal (-fp).
 
 // Area ( [l,r>, [t,r> )
 	int		 areaLeft;		//!< Export rect, left (-al {number} ).
